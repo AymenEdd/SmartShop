@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatbot Scanner</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f4f7fb; color: #1b2430; }
+    h1 { margin-top: 0; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; transition: background 0.2s ease; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button:hover:not(:disabled) { background: #1d4ed8; }
+    video, canvas { width: 100%; height: auto; border-radius: 12px; background: #000; }
+    .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .result-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; background: #fff; }
+    .result-card h3 { margin: 0 0 8px; font-size: 1rem; }
+    .result-card p { margin: 4px 0; line-height: 1.4; }
+    .label-list { list-style: none; padding-left: 0; margin: 0; }
+    .label-item { padding: 8px 10px; border-radius: 8px; background: #eef2ff; margin-bottom: 8px; }
+    .status { margin-bottom: 12px; }
+    input[type=text] { flex: 1 1 220px; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Chatbot Scanner</h1>
+    <p>Utilise la caméra pour détecter un objet et chercher des produits similaires dans la boutique.</p>
+    <div class="controls">
+      <button id="startCamera">Démarrer la caméra</button>
+      <button id="scanObject" disabled>Scanner l'objet</button>
+      <button id="searchLabel" disabled>Chercher le label</button>
+      <input id="searchText" type="text" placeholder="Saisir un nom d'objet ou catégorie" />
+      <button id="manualSearch">Recherche manuelle</button>
+    </div>
+    <div class="status" id="status">Statut: prêt</div>
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="overlay" style="position:absolute; top: 0; left: 0; display:none;"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Étiquettes détectées</h2>
+    <p>Si un objet est reconnu, clique sur une étiquette ou utilise le bouton de recherche.</p>
+    <ul class="label-list" id="labelList"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Produits trouvés</h2>
+    <div id="products" class="results"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+  <script>
+    const startButton = document.getElementById('startCamera');
+    const scanButton = document.getElementById('scanObject');
+    const searchButton = document.getElementById('searchLabel');
+    const manualSearchButton = document.getElementById('manualSearch');
+    const searchText = document.getElementById('searchText');
+    const statusEl = document.getElementById('status');
+    const labelList = document.getElementById('labelList');
+    const productsEl = document.getElementById('products');
+    const video = document.getElementById('video');
+
+    let model = null;
+    let stream = null;
+    let detectedLabels = [];
+
+    async function setStatus(message) {
+      statusEl.textContent = 'Statut: ' + message;
+    }
+
+    async function loadModel() {
+      if (!model) {
+        setStatus('Chargement du modèle de détection...');
+        model = await cocoSsd.load();
+        setStatus('Modèle prêt. Démarre la caméra.');
+      }
+    }
+
+    async function startCamera() {
+      try {
+        await loadModel();
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        scanButton.disabled = false;
+        searchButton.disabled = true;
+        setStatus('Caméra active. Scanne un objet.');
+      } catch (err) {
+        console.error(err);
+        setStatus('Impossible d'accéder à la caméra : ' + err.message);
+      }
+    }
+
+    async function scanObject() {
+      if (!model) return;
+      setStatus('Analyse en cours...');
+      const predictions = await model.detect(video);
+      if (!predictions.length) {
+        labelList.innerHTML = '<li class="label-item">Aucun objet reconnu.</li>';
+        setStatus('Aucun objet détecté. Essaie de rapprocher la caméra.');
+        searchButton.disabled = true;
+        return;
+      }
+
+      detectedLabels = [...new Set(predictions.map(p => p.class))];
+      labelList.innerHTML = detectedLabels.map(label => `<li class="label-item"><button type="button" data-label="${label}">${label}</button></li>`).join('');
+      labelList.querySelectorAll('button').forEach(button => {
+        button.addEventListener('click', () => searchProducts(button.dataset.label));
+      });
+      searchButton.disabled = false;
+      searchText.value = detectedLabels[0];
+      setStatus('Objet détecté : ' + detectedLabels.join(', '));
+    }
+
+    async function searchProducts(query) {
+      if (!query) {
+        setStatus('Saisis un label pour rechercher.');
+        return;
+      }
+      searchText.value = query;
+      setStatus('Recherche des produits pour : ' + query);
+      const response = await fetch('/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      if (!response.ok) {
+        setStatus('Erreur lors de la recherche.');
+        return;
+      }
+      const data = await response.json();
+      renderProducts(data.products);
+      setStatus(`Recherche terminée : ${data.products.length} produit(s) trouvé(s)`);
+    }
+
+    function renderProducts(products) {
+      if (!products.length) {
+        productsEl.innerHTML = '<div>Aucun produit trouvé pour ce label.</div>';
+        return;
+      }
+      productsEl.innerHTML = products.map(product => `
+        <div class="result-card">
+          <h3>${product.name}</h3>
+          <p><strong>Catégorie :</strong> ${product.category}</p>
+          <p><strong>Prix :</strong> ${product.price.toFixed(2)} €</p>
+          <p><strong>Stock :</strong> ${product.stock}</p>
+          <p>${product.description || 'Pas de description.'}</p>
+        </div>
+      `).join('');
+    }
+
+    startButton.addEventListener('click', startCamera);
+    scanButton.addEventListener('click', scanObject);
+    searchButton.addEventListener('click', () => searchProducts(searchText.value.trim()));
+    manualSearchButton.addEventListener('click', () => searchProducts(searchText.value.trim()));
+
+    window.addEventListener('beforeunload', () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+  </script>
+</body>
+</html>
