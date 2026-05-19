@@ -157,7 +157,13 @@ fun SmartShopApp() {
                 )
             }
             composable("register") {
-                RegisterScreen(authViewModel) { navController.navigate("home") }
+                RegisterScreen(authViewModel) {
+                    val redirect = authViewModel.redirectRouteAfterLogin
+                    authViewModel.redirectRouteAfterLogin = null
+                    navController.navigate(redirect ?: "home") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
             }
             composable("home") {
                 HomeScreen(

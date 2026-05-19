@@ -443,7 +443,6 @@ fun ProfileScreen(
     }
 }
 
-// ── Shared section title with accent bar ──────────────────────────────────────
 @Composable
 private fun SectionTitle(title: String) {
     Row(

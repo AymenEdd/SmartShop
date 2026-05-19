@@ -31,7 +31,7 @@ class AuthViewModel : ViewModel() {
     var loginError by mutableStateOf<String?>(null)
     var registerError by mutableStateOf<String?>(null)
     var authLoading by mutableStateOf(false)
-    var userProfile by mutableStateOf<UserProfile?>(null)
+    var userProfile by mutableStateOf(AppContainer.repo.currentFirebaseProfile())
     var redirectRouteAfterLogin: String? = null
     val isAdmin get() = userProfile?.is_admin == true
     val isLoggedIn get() = userProfile != null
@@ -63,9 +63,13 @@ class AuthViewModel : ViewModel() {
     fun register(email: String, fullName: String, password: String, latitude: Double? = null, longitude: Double? = null, onSuccess: () -> Unit) {
         viewModelScope.launch {
             authLoading = true
+            registerError = null
             runCatching { AppContainer.repo.register(email, fullName, password, latitude, longitude) }
-                .onSuccess { onSuccess() }
-                .onFailure { registerError = it.message }
+                .onSuccess {
+                    userProfile = AppContainer.repo.userProfile
+                    onSuccess()
+                }
+                .onFailure { registerError = it.message ?: "Registration failed. Please try again." }
             authLoading = false
         }
     }
@@ -360,7 +364,6 @@ class ProfileViewModel : ViewModel() {
                 }
         }
     }
-}
 }
 
 class AdminDashboardViewModel : ViewModel() {
