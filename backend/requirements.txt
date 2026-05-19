@@ -11,3 +11,4 @@ redis
 chromadb
 sentence-transformers
 requests
+google-auth

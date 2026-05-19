@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     admin_email: str | None = None
     admin_password: str | None = None
     google_maps_api_key: str | None = None
+    firebase_project_id: str | None = None
 
 
 # Create settings instance with explicit environment variables
@@ -42,4 +43,5 @@ settings = Settings(
     admin_email=os.getenv("ADMIN_EMAIL"),
     admin_password=os.getenv("ADMIN_PASSWORD"),
     google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY"),
+    firebase_project_id=os.getenv("FIREBASE_PROJECT_ID"),
 )

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "229517881404",
+    "project_id": "ecoai-42534",
+    "storage_bucket": "ecoai-42534.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:229517881404:android:a83215c3f8c29fbedfd339",
+        "android_client_info": {
+          "package_name": "com.example.smartshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVC7ymqi77ZsRxMLnTuNAZy_s2416uYh0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
