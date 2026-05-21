@@ -86,4 +86,4 @@ yarn-error.log*
 
 # Temporary files
 temp_*
-*.tmp
+*.tmp*.mp4
