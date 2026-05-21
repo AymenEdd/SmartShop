@@ -89,8 +89,6 @@ fun SmartShopApp() {
     val profileViewModel: ProfileViewModel = viewModel()
     val adminViewModel: AdminDashboardViewModel = viewModel()
 
-    // Sync auth state into CartViewModel and ProfileViewModel
-    // whenever authViewModel.isLoggedIn changes, the child VMs are updated
     LaunchedEffect(authViewModel.isLoggedIn) {
         cartViewModel.isLoggedIn = authViewModel.isLoggedIn
         profileViewModel.isLoggedIn = authViewModel.isLoggedIn
